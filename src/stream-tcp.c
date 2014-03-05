@@ -4171,6 +4171,16 @@ int StreamTcpPacket (ThreadVars *tv, Packet *p, StreamTcpThread *stt,
 
     DEBUG_ASSERT_FLOW_LOCKED(p->flow);
 
+#ifdef DEBUG_VALIDATION
+    if (p->pkt_src == PKT_SRC_WIRE) {
+        if (p->flow->thread_id == 0)
+            p->flow->thread_id = tv->id;
+        else {
+            BUG_ON(p->flow->thread_id != tv->id);
+        }
+    }
+#endif
+
     SCLogDebug("p->pcap_cnt %"PRIu64, p->pcap_cnt);
 
     TcpSession *ssn = (TcpSession *)p->flow->protoctx;
