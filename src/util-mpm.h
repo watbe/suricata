@@ -65,8 +65,10 @@ enum {
 
     /* aho-corasick */
     MPM_AC,
+    MPM_PFAC,
 #ifdef __SC_CUDA_SUPPORT__
     MPM_AC_CUDA,
+    MPM_PFAC_CUDA,
 #endif
     /* aho-corasick-goto-failure state based */
     MPM_AC_GFBS,

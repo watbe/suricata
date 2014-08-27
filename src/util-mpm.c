@@ -37,6 +37,7 @@
 #include "util-mpm-ac-gfbs.h"
 #include "util-mpm-ac-bs.h"
 #include "util-mpm-ac-tile.h"
+#include "util-mpm-pfac.h"
 #include "util-hashlist.h"
 
 #include "detect-engine.h"
@@ -387,7 +388,7 @@ static void *MpmCudaConfParse(ConfNode *node)
 
 void MpmCudaEnvironmentSetup()
 {
-    if (PatternMatchDefaultMatcher() != MPM_AC_CUDA)
+    if (PatternMatchDefaultMatcher() != MPM_AC_CUDA && PatternMatchDefaultMatcher != MPM_PFAC_CUDA)
         return;
 
     CudaHandlerAddCudaProfileFromConf("mpm", MpmCudaConfParse, MpmCudaConfFree);

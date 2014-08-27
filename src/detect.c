@@ -4542,11 +4542,11 @@ int SigGroupBuild(DetectEngineCtx *de_ctx)
                 SCLogError(SC_ERR_FATAL, "cuda context pop failure.");
                 exit(EXIT_FAILURE);
             }
-        }
-
         /* too late to call this either ways.  Should be called post ac goto.
          * \todo Support this. */
         DetermineCudaStateTableSize(de_ctx);
+        }
+
 #endif
 
     }

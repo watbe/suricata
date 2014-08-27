@@ -1009,7 +1009,7 @@ int SCPFACPreparePatterns(MpmCtx *mpm_ctx)
         int r = SCCudaMemAlloc(&ctx->state_table_u32_cuda,
                                ctx->state_count * sizeof(unsigned int) * 256);
         if (r < 0) {
-            SCLogError(SC_ERR_PFAC_CUDA_ERROR, "SCCudaMemAlloc failure.");
+            SCLogError(SC_ERR_AC_CUDA_ERROR, "SCCudaMemAlloc failure.");
             exit(EXIT_FAILURE);
         }
 
@@ -1017,7 +1017,7 @@ int SCPFACPreparePatterns(MpmCtx *mpm_ctx)
                              ctx->state_table_u32,
                              ctx->state_count * sizeof(unsigned int) * 256);
         if (r < 0) {
-            SCLogError(SC_ERR_PFAC_CUDA_ERROR, "SCCudaMemcpyHtoD failure.");
+            SCLogError(SC_ERR_AC_CUDA_ERROR, "SCCudaMemcpyHtoD failure.");
             exit(EXIT_FAILURE);
         }
     }
@@ -1388,7 +1388,7 @@ void SCPFACPrintInfo(MpmCtx *mpm_ctx)
  *       code internally directly references ac and hence it has found its
  *       home in this file, instead of util-mpm.c
  */
-void DetermineCudaStateTableSize(DetectEngineCtx *de_ctx)
+void PFACDetermineCudaStateTableSize(DetectEngineCtx *de_ctx)
 {
     MpmCtx *mpm_ctx = NULL;
 
@@ -1684,28 +1684,28 @@ static void *SCPFACCudaDispatcher(void *arg)
     CUcontext cuda_context =
         CudaHandlerModuleGetContext(MPM_PFAC_CUDA_MODULE_NAME, conf->device_id);
     if (cuda_context == 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "context is NULL.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "context is NULL.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaCtxPushCurrent(cuda_context);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "context push failed.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "context push failed.");
         exit(EXIT_FAILURE);
     }
     CUmodule cuda_module = 0;
     if (CudaHandlerGetCudaModule(&cuda_module, "util-mpm-ac-cuda-kernel") < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error retrieving cuda module.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error retrieving cuda module.");
         exit(EXIT_FAILURE);
     }
     CUfunction kernel = 0;
 #if __WORDSIZE==64
     if (SCCudaModuleGetFunction(&kernel, cuda_module, "SCPFACCudaSearch64") == -1) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error retrieving kernel");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error retrieving kernel");
         exit(EXIT_FAILURE);
     }
 #else
     if (SCCudaModuleGetFunction(&kernel, cuda_module, "SCPFACCudaSearch32") == -1) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error retrieving kernel");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error retrieving kernel");
         exit(EXIT_FAILURE);
     }
 #endif
@@ -1720,32 +1720,32 @@ static void *SCPFACCudaDispatcher(void *arg)
     uint32_t *cuda_results_buffer_h = NULL;
     r = SCCudaMemAlloc(&cuda_g_u8_lowercasetable_d, sizeof(g_u8_lowercasetable));
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "SCCudaMemAlloc failure.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "SCCudaMemAlloc failure.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemcpyHtoD(cuda_g_u8_lowercasetable_d, g_u8_lowercasetable, sizeof(g_u8_lowercasetable));
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "SCCudaMemcpyHtoD failure.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "SCCudaMemcpyHtoD failure.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemAlloc(&cuda_packets_buffer_d, conf->gpu_transfer_size);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "SCCudaMemAlloc failure.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "SCCudaMemAlloc failure.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemAlloc(&cuda_offset_buffer_d, conf->gpu_transfer_size * 4);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "SCCudaMemAlloc failure.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "SCCudaMemAlloc failure.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemAlloc(&cuda_results_buffer_d, conf->gpu_transfer_size * 8);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "SCCudaMemAlloc failure.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "SCCudaMemAlloc failure.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemAllocHost((void **)&cuda_results_buffer_h, conf->gpu_transfer_size * 8);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "SCCudaMemAlloc failure.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "SCCudaMemAlloc failure.");
         exit(EXIT_FAILURE);
     }
 
@@ -1787,12 +1787,12 @@ static void *SCPFACCudaDispatcher(void *arg)
 #endif
         r = SCCudaMemcpyHtoDAsync(cuda_packets_buffer_d, (cb_data->d_buffer + cb_culled_info.d_buffer_start_offset), cb_culled_info.d_buffer_len, 0);
         if (r < 0) {
-            SCLogError(SC_ERR_PFAC_CUDA_ERROR, "SCCudaMemcpyHtoD failure.");
+            SCLogError(SC_ERR_AC_CUDA_ERROR, "SCCudaMemcpyHtoD failure.");
             exit(EXIT_FAILURE);
         }
         r = SCCudaMemcpyHtoDAsync(cuda_offset_buffer_d, (cb_data->o_buffer + cb_culled_info.op_buffer_start_offset), sizeof(uint32_t) * cb_culled_info.no_of_items, 0);
         if (r < 0) {
-            SCLogError(SC_ERR_PFAC_CUDA_ERROR, "SCCudaMemcpyHtoD failure.");
+            SCLogError(SC_ERR_AC_CUDA_ERROR, "SCCudaMemcpyHtoD failure.");
             exit(EXIT_FAILURE);
         }
         void *args[] = { &cuda_packets_buffer_d,
@@ -1807,12 +1807,12 @@ static void *SCPFACCudaDispatcher(void *arg)
                                0, 0,
                                args, NULL);
         if (r < 0) {
-            SCLogError(SC_ERR_PFAC_CUDA_ERROR, "SCCudaLaunchKernel failure.");
+            SCLogError(SC_ERR_AC_CUDA_ERROR, "SCCudaLaunchKernel failure.");
             exit(EXIT_FAILURE);
         }
         r = SCCudaMemcpyDtoHAsync(cuda_results_buffer_h, cuda_results_buffer_d, sizeof(uint32_t) * (cb_culled_info.d_buffer_len * 2), 0);
         if (r < 0) {
-            SCLogError(SC_ERR_PFAC_CUDA_ERROR, "SCCudaMemcpyDtoH failure.");
+            SCLogError(SC_ERR_AC_CUDA_ERROR, "SCCudaMemcpyDtoH failure.");
             exit(EXIT_FAILURE);
         }
 
@@ -1821,7 +1821,7 @@ static void *SCPFACCudaDispatcher(void *arg)
         /**************** 1 SYNCHRO ****************/
         r = SCCudaCtxSynchronize();
         if (r < 0) {
-            SCLogError(SC_ERR_PFAC_CUDA_ERROR, "SCCudaCtxSynchronize failure.");
+            SCLogError(SC_ERR_AC_CUDA_ERROR, "SCCudaCtxSynchronize failure.");
             exit(EXIT_FAILURE);
         }
 
@@ -1854,27 +1854,27 @@ static void *SCPFACCudaDispatcher(void *arg)
 
     r = SCCudaModuleUnload(cuda_module);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error unloading cuda module.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error unloading cuda module.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemFree(cuda_packets_buffer_d);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error freeing cuda device memory.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error freeing cuda device memory.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemFree(cuda_offset_buffer_d);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error freeing cuda device memory.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error freeing cuda device memory.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemFree(cuda_results_buffer_d);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error freeing cuda device memory.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error freeing cuda device memory.");
         exit(EXIT_FAILURE);
     }
     r = SCCudaMemFreeHost(cuda_results_buffer_h);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error freeing cuda host memory.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error freeing cuda host memory.");
         exit(EXIT_FAILURE);
     }
 
@@ -1978,23 +1978,23 @@ void SCPFACCudaStartDispatcher(void)
     return;
 }
 
-int MpmCudaBufferSetup(void)
+int PFACMpmCudaBufferSetup(void)
 {
     int r = 0;
     MpmCudaConf *conf = CudaHandlerGetCudaProfile("mpm");
     if (conf == NULL) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error obtaining cuda mpm profile.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error obtaining cuda mpm profile.");
         return -1;
     }
 
     CUcontext cuda_context = CudaHandlerModuleGetContext(MPM_PFAC_CUDA_MODULE_NAME, conf->device_id);
     if (cuda_context == 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error retrieving cuda context.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error retrieving cuda context.");
         return -1;
     }
     r = SCCudaCtxPushCurrent(cuda_context);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error pushing cuda context.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error pushing cuda context.");
         return -1;
     }
 
@@ -2004,30 +2004,30 @@ int MpmCudaBufferSetup(void)
 
     r = SCCudaMemAllocHost((void *)&d_buffer, conf->cb_buffer_size);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Cuda alloc host failure.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Cuda alloc host failure.");
         return -1;
     }
     SCLogInfo("Allocated a cuda d_buffer - %"PRIu32" bytes", conf->cb_buffer_size);
     r = SCCudaMemAllocHost((void *)&o_buffer, sizeof(uint32_t) * UTIL_MPM_CUDA_CUDA_BUFFER_OPBUFFER_ITEMS_DEFAULT);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Cuda alloc host failue.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Cuda alloc host failue.");
         return -1;
     }
     r = SCCudaMemAllocHost((void *)&p_buffer, sizeof(void *) * UTIL_MPM_CUDA_CUDA_BUFFER_OPBUFFER_ITEMS_DEFAULT);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Cuda alloc host failure.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Cuda alloc host failure.");
         return -1;
     }
 
     r = SCCudaCtxPopCurrent(NULL);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "cuda context pop failure.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "cuda context pop failure.");
         return -1;
     }
 
     CudaBufferData *cb = CudaBufferRegisterNew(d_buffer, conf->cb_buffer_size, o_buffer, p_buffer, UTIL_MPM_CUDA_CUDA_BUFFER_OPBUFFER_ITEMS_DEFAULT);
     if (cb == NULL) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error registering new cb instance.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error registering new cb instance.");
         return -1;
     }
     CudaHandlerModuleStoreData(MPM_PFAC_CUDA_MODULE_NAME, MPM_PFAC_CUDA_MODULE_CUDA_BUFFER_NAME, cb);
@@ -2035,12 +2035,12 @@ int MpmCudaBufferSetup(void)
     return 0;
 }
 
-int MpmCudaBufferDeSetup(void)
+int PFACMpmCudaBufferDeSetup(void)
 {
     int r = 0;
     MpmCudaConf *conf = CudaHandlerGetCudaProfile("mpm");
     if (conf == NULL) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error obtaining cuda mpm profile.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error obtaining cuda mpm profile.");
         return -1;
     }
 
@@ -2049,34 +2049,34 @@ int MpmCudaBufferDeSetup(void)
 
     CUcontext cuda_context = CudaHandlerModuleGetContext(MPM_PFAC_CUDA_MODULE_NAME, conf->device_id);
     if (cuda_context == 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error retrieving cuda context.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error retrieving cuda context.");
         return -1;
     }
     r = SCCudaCtxPushCurrent(cuda_context);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error pushing cuda context.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error pushing cuda context.");
         return -1;
     }
 
     r = SCCudaMemFreeHost(cb_data->d_buffer);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error freeing cuda host memory.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error freeing cuda host memory.");
         return -1;
     }
     r = SCCudaMemFreeHost(cb_data->o_buffer);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error freeing cuda host memory.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error freeing cuda host memory.");
         return -1;
     }
     r = SCCudaMemFreeHost(cb_data->p_buffer);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "Error freeing cuda host memory.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "Error freeing cuda host memory.");
         return -1;
     }
 
     r = SCCudaCtxPopCurrent(NULL);
     if (r < 0) {
-        SCLogError(SC_ERR_PFAC_CUDA_ERROR, "cuda context pop failure.");
+        SCLogError(SC_ERR_AC_CUDA_ERROR, "cuda context pop failure.");
         return -1;
     }
 
@@ -2094,22 +2094,22 @@ int MpmCudaBufferDeSetup(void)
  */
 void MpmPFACRegister(void)
 {
-    mpm_table[MPM_AC].name = "pfac";
+    mpm_table[MPM_PFAC].name = "pfac";
     /* don't need this.  isn't that awesome?  no more chopping and blah blah */
-    mpm_table[MPM_AC].max_pattern_length = 0;
+    mpm_table[MPM_PFAC].max_pattern_length = 0;
 
-    mpm_table[MPM_AC].InitCtx = SCPFACInitCtx;
-    mpm_table[MPM_AC].InitThreadCtx = SCPFACInitThreadCtx;
-    mpm_table[MPM_AC].DestroyCtx = SCPFACDestroyCtx;
-    mpm_table[MPM_AC].DestroyThreadCtx = SCPFACDestroyThreadCtx;
-    mpm_table[MPM_AC].AddPattern = SCPFACAddPatternCS;
-    mpm_table[MPM_AC].AddPatternNocase = SCPFACAddPatternCI;
-    mpm_table[MPM_AC].Prepare = SCPFACPreparePatterns;
-    mpm_table[MPM_AC].Search = SCPFACSearch;
-    mpm_table[MPM_AC].Cleanup = NULL;
-    mpm_table[MPM_AC].PrintCtx = SCPFACPrintInfo;
-    mpm_table[MPM_AC].PrintThreadCtx = SCPFACPrintSearchStats;
-    mpm_table[MPM_AC].RegisterUnittests = SCPFACRegisterTests;
+    mpm_table[MPM_PFAC].InitCtx = SCPFACInitCtx;
+    mpm_table[MPM_PFAC].InitThreadCtx = SCPFACInitThreadCtx;
+    mpm_table[MPM_PFAC].DestroyCtx = SCPFACDestroyCtx;
+    mpm_table[MPM_PFAC].DestroyThreadCtx = SCPFACDestroyThreadCtx;
+    mpm_table[MPM_PFAC].AddPattern = SCPFACAddPatternCS;
+    mpm_table[MPM_PFAC].AddPatternNocase = SCPFACAddPatternCI;
+    mpm_table[MPM_PFAC].Prepare = SCPFACPreparePatterns;
+    mpm_table[MPM_PFAC].Search = SCPFACSearch;
+    mpm_table[MPM_PFAC].Cleanup = NULL;
+    mpm_table[MPM_PFAC].PrintCtx = SCPFACPrintInfo;
+    mpm_table[MPM_PFAC].PrintThreadCtx = SCPFACPrintSearchStats;
+    mpm_table[MPM_PFAC].RegisterUnittests = SCPFACRegisterTests;
 
     return;
 }
@@ -2156,7 +2156,7 @@ static int SCPFACTest01(void)
 
     memset(&mpm_ctx, 0, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 match */
@@ -2190,7 +2190,7 @@ static int SCPFACTest02(void)
 
     memset(&mpm_ctx, 0, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 match */
@@ -2223,7 +2223,7 @@ static int SCPFACTest03(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 match */
@@ -2260,7 +2260,7 @@ static int SCPFACTest04(void)
 
     memset(&mpm_ctx, 0, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     MpmAddPatternCS(&mpm_ctx, (uint8_t *)"abcd", 4, 0, 0, 0, 0, 0);
@@ -2294,7 +2294,7 @@ static int SCPFACTest05(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     MpmAddPatternCI(&mpm_ctx, (uint8_t *)"ABCD", 4, 0, 0, 0, 0, 0);
@@ -2328,7 +2328,7 @@ static int SCPFACTest06(void)
 
     memset(&mpm_ctx, 0, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     MpmAddPatternCS(&mpm_ctx, (uint8_t *)"abcd", 4, 0, 0, 0, 0, 0);
@@ -2360,7 +2360,7 @@ static int SCPFACTest07(void)
 
     memset(&mpm_ctx, 0, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* should match 30 times */
@@ -2405,7 +2405,7 @@ static int SCPFACTest08(void)
 
     memset(&mpm_ctx, 0, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 match */
@@ -2437,7 +2437,7 @@ static int SCPFACTest09(void)
 
     memset(&mpm_ctx, 0, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 match */
@@ -2469,7 +2469,7 @@ static int SCPFACTest10(void)
 
     memset(&mpm_ctx, 0, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 match */
@@ -2506,7 +2506,7 @@ static int SCPFACTest11(void)
 
     memset(&mpm_ctx, 0, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     if (MpmAddPatternCS(&mpm_ctx, (uint8_t *)"he", 2, 0, 0, 1, 0, 0) == -1)
@@ -2553,7 +2553,7 @@ static int SCPFACTest12(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 match */
@@ -2588,7 +2588,7 @@ static int SCPFACTest13(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 match */
@@ -2622,7 +2622,7 @@ static int SCPFACTest14(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 match */
@@ -2656,7 +2656,7 @@ static int SCPFACTest15(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 match */
@@ -2690,7 +2690,7 @@ static int SCPFACTest16(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 match */
@@ -2724,7 +2724,7 @@ static int SCPFACTest17(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 match */
@@ -2758,7 +2758,7 @@ static int SCPFACTest18(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 match */
@@ -2792,7 +2792,7 @@ static int SCPFACTest19(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 */
@@ -2826,7 +2826,7 @@ static int SCPFACTest20(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 */
@@ -2860,7 +2860,7 @@ static int SCPFACTest21(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 */
@@ -2892,7 +2892,7 @@ static int SCPFACTest22(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 match */
@@ -2927,7 +2927,7 @@ static int SCPFACTest23(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 */
@@ -2959,7 +2959,7 @@ static int SCPFACTest24(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 1 */
@@ -2991,7 +2991,7 @@ static int SCPFACTest25(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     MpmAddPatternCI(&mpm_ctx, (uint8_t *)"ABCD", 4, 0, 0, 0, 0, 0);
@@ -3025,7 +3025,7 @@ static int SCPFACTest26(void)
 
     memset(&mpm_ctx, 0x00, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     MpmAddPatternCI(&mpm_ctx, (uint8_t *)"Works", 5, 0, 0, 0, 0, 0);
@@ -3058,7 +3058,7 @@ static int SCPFACTest27(void)
 
     memset(&mpm_ctx, 0, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 0 match */
@@ -3091,7 +3091,7 @@ static int SCPFACTest28(void)
 
     memset(&mpm_ctx, 0, sizeof(MpmCtx));
     memset(&mpm_thread_ctx, 0, sizeof(MpmThreadCtx));
-    MpmInitCtx(&mpm_ctx, MPM_AC);
+    MpmInitCtx(&mpm_ctx, MPM_PFAC);
     SCPFACInitThreadCtx(&mpm_ctx, &mpm_thread_ctx, 0);
 
     /* 0 match */

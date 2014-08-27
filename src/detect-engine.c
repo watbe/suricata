@@ -975,6 +975,7 @@ static uint8_t DetectEngineCtxLoadConf(DetectEngineCtx *de_ctx) {
         /* for now, since we still haven't implemented any intelligence into
          * understanding the patterns and distributing mpm_ctx across sgh */
         if (de_ctx->mpm_matcher == DEFAULT_MPM || de_ctx->mpm_matcher == MPM_AC_GFBS ||
+            de_ctx->mpm_matcher == MPM_PFAC ||
 #ifdef __SC_CUDA_SUPPORT__
             de_ctx->mpm_matcher == MPM_AC_BS || de_ctx->mpm_matcher == MPM_AC_CUDA) {
 #else
@@ -989,7 +990,7 @@ static uint8_t DetectEngineCtxLoadConf(DetectEngineCtx *de_ctx) {
             de_ctx->sgh_mpm_context = ENGINE_SGH_MPM_FACTORY_CONTEXT_SINGLE;
         } else if (strcmp(sgh_mpm_context, "full") == 0) {
 #ifdef __SC_CUDA_SUPPORT__
-            if (de_ctx->mpm_matcher == MPM_AC_CUDA) {
+            if (de_ctx->mpm_matcher == MPM_AC_CUDA || de_ctx->mpm_matcher == MPM_PFAC_CUDA) {
                 SCLogError(SC_ERR_INVALID_YAML_CONF_ENTRY, "You can't use "
                            "the cuda version of our mpm ac, i.e. \"ac-cuda\" "
                            "along with \"full\" \"sgh-mpm-context\".  "

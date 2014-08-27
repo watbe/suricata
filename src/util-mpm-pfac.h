@@ -113,7 +113,7 @@ void MpmPFACRegister(void);
 #define MPM_PFAC_CUDA_MODULE_NAME "ac_cuda"
 #define MPM_PFAC_CUDA_MODULE_CUDA_BUFFER_NAME "ac_cuda_cb"
 
-static inline void CudaBufferPacket(CudaThreadVars *ctv, Packet *p)
+static inline void PFACCudaBufferPacket(CudaThreadVars *ctv, Packet *p)
 {
     if (p->cuda_pkt_vars.cuda_mpm_enabled) {
         while (!p->cuda_pkt_vars.cuda_done) {
@@ -193,15 +193,15 @@ static inline void CudaBufferPacket(CudaThreadVars *ctv, Packet *p)
     return;
 }
 
-void MpmACCudaRegister(void);
+void MpmPFACCudaRegister(void);
 void SCPFACConstructBoth16and32StateTables(void);
-int MpmCudaBufferSetup(void);
-int MpmCudaBufferDeSetup(void);
+int PFACMpmCudaBufferSetup(void);
+int PFACMpmCudaBufferDeSetup(void);
 void SCPFACCudaStartDispatcher(void);
 void SCPFACCudaKillDispatcher(void);
 uint32_t  SCPFACCudaPacketResultsProcessing(Packet *p, MpmCtx *mpm_ctx,
                                           PatternMatcherQueue *pmq);
-void DetermineCudaStateTableSize(DetectEngineCtx *de_ctx);
+void PFACDetermineCudaStateTableSize(DetectEngineCtx *de_ctx);
 
 #endif /* __SC_CUDA_SUPPORT__ */
 
