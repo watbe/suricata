@@ -22,11 +22,11 @@
  *
  */
 
-#ifndef __UTIL_MPM_AC__H__
-#define __UTIL_MPM_AC__H__
+#ifndef __UTIL_MPM_PFAC__H__
+#define __UTIL_MPM_PFAC__H__
 
-#define SC_AC_STATE_TYPE_U16 uint16_t
-#define SC_AC_STATE_TYPE_U32 uint32_t
+#define SC_PFAC_STATE_TYPE_U16 uint16_t
+#define SC_PFAC_STATE_TYPE_U32 uint32_t
 
 #ifdef __SC_CUDA_SUPPORT__
 #include "suricata-common.h"
@@ -38,7 +38,7 @@
 #include "flow.h"
 #endif /* __SC_CUDA_SUPPORT__ */
 
-typedef struct SCACPattern_ {
+typedef struct SCPFACPattern_ {
     /* length of the pattern */
     uint16_t len;
     /* flags decribing the pattern */
@@ -52,41 +52,41 @@ typedef struct SCACPattern_ {
     /* pattern id */
     uint32_t id;
 
-    struct SCACPattern_ *next;
-} SCACPattern;
+    struct SCPFACPattern_ *next;
+} SCPFACPattern;
 
-typedef struct SCACPatternList_ {
+typedef struct SCPFACPatternList_ {
     uint8_t *cs;
     uint16_t patlen;
-} SCACPatternList;
+} SCPFACPatternList;
 
-typedef struct SCACOutputTable_ {
+typedef struct SCPFACOutputTable_ {
     /* list of pattern sids */
     uint32_t *pids;
     /* no of entries we have in pids */
     uint32_t no_of_entries;
-} SCACOutputTable;
+} SCPFACOutputTable;
 
-typedef struct SCACCtx_ {
+typedef struct SCPFACCtx_ {
     /* hash used during ctx initialization */
-    SCACPattern **init_hash;
+    SCPFACPattern **init_hash;
 
     /* pattern arrays.  We need this only during the goto table creation phase */
-    SCACPattern **parray;
+    SCPFACPattern **parray;
 
     /* no of states used by ac */
     uint32_t state_count;
     /* the all important memory hungry state_table */
-    SC_AC_STATE_TYPE_U16 (*state_table_u16)[256];
+    SC_PFAC_STATE_TYPE_U16 (*state_table_u16)[256];
     /* the all important memory hungry state_table */
-    SC_AC_STATE_TYPE_U32 (*state_table_u32)[256];
+    SC_PFAC_STATE_TYPE_U32 (*state_table_u32)[256];
 
     /* goto_table, failure table and output table.  Needed to create state_table.
      * Will be freed, once we have created the state_table */
     int32_t (*goto_table)[256];
     int32_t *failure_table;
-    SCACOutputTable *output_table;
-    SCACPatternList *pid_pat_list;
+    SCPFACOutputTable *output_table;
+    SCPFACPatternList *pid_pat_list;
 
     /* the size of each state */
     uint16_t single_state_size;
@@ -96,22 +96,22 @@ typedef struct SCACCtx_ {
     CUdeviceptr state_table_u16_cuda;
     CUdeviceptr state_table_u32_cuda;
 #endif /* __SC_CUDA_SUPPORT__ */
-} SCACCtx;
+} SCPFACCtx;
 
-typedef struct SCACThreadCtx_ {
+typedef struct SCPFACThreadCtx_ {
     /* the total calls we make to the search function */
     uint32_t total_calls;
     /* the total patterns that we ended up matching against */
     uint64_t total_matches;
-} SCACThreadCtx;
+} SCPFACThreadCtx;
 
-void MpmACRegister(void);
+void MpmPFACRegister(void);
 
 
 #ifdef __SC_CUDA_SUPPORT__
 
-#define MPM_AC_CUDA_MODULE_NAME "ac_cuda"
-#define MPM_AC_CUDA_MODULE_CUDA_BUFFER_NAME "ac_cuda_cb"
+#define MPM_PFAC_CUDA_MODULE_NAME "ac_cuda"
+#define MPM_PFAC_CUDA_MODULE_CUDA_BUFFER_NAME "ac_cuda_cb"
 
 static inline void CudaBufferPacket(CudaThreadVars *ctv, Packet *p)
 {
@@ -168,7 +168,7 @@ static inline void CudaBufferPacket(CudaThreadVars *ctv, Packet *p)
         return;
     }
     *((uint64_t *)(slice->buffer + slice->start_offset)) = p->payload_len;
-    *((CUdeviceptr *)(slice->buffer + slice->start_offset + sizeof(uint64_t))) = ((SCACCtx *)(mpm_ctx->ctx))->state_table_u32_cuda;
+    *((CUdeviceptr *)(slice->buffer + slice->start_offset + sizeof(uint64_t))) = ((SCPFACCtx *)(mpm_ctx->ctx))->state_table_u32_cuda;
     memcpy(slice->buffer + slice->start_offset + sizeof(uint64_t) + sizeof(CUdeviceptr), p->payload, p->payload_len);
 #else
     CudaBufferSlice *slice = CudaBufferGetSlice(ctv->cuda_ac_cb,
@@ -181,29 +181,29 @@ static inline void CudaBufferPacket(CudaThreadVars *ctv, Packet *p)
         return;
     }
     *((uint32_t *)(slice->buffer + slice->start_offset)) = p->payload_len;
-    *((CUdeviceptr *)(slice->buffer + slice->start_offset + sizeof(uint32_t))) = ((SCACCtx *)(mpm_ctx->ctx))->state_table_u32_cuda;
+    *((CUdeviceptr *)(slice->buffer + slice->start_offset + sizeof(uint32_t))) = ((SCPFACCtx *)(mpm_ctx->ctx))->state_table_u32_cuda;
     memcpy(slice->buffer + slice->start_offset + sizeof(uint32_t) + sizeof(CUdeviceptr), p->payload, p->payload_len);
 #endif
     p->cuda_pkt_vars.cuda_mpm_enabled = 1;
     SC_ATOMIC_SET(slice->done, 1);
 
     SCLogDebug("cuda ac buffering packet %p, payload_len - %"PRIu16" and deviceptr - %"PRIu64"\n",
-               p, p->payload_len, (unsigned long)((SCACCtx *)(mpm_ctx->ctx))->state_table_u32_cuda);
+               p, p->payload_len, (unsigned long)((SCPFACCtx *)(mpm_ctx->ctx))->state_table_u32_cuda);
 
     return;
 }
 
 void MpmACCudaRegister(void);
-void SCACConstructBoth16and32StateTables(void);
+void SCPFACConstructBoth16and32StateTables(void);
 int MpmCudaBufferSetup(void);
 int MpmCudaBufferDeSetup(void);
-void SCACCudaStartDispatcher(void);
-void SCACCudaKillDispatcher(void);
-uint32_t  SCACCudaPacketResultsProcessing(Packet *p, MpmCtx *mpm_ctx,
+void SCPFACCudaStartDispatcher(void);
+void SCPFACCudaKillDispatcher(void);
+uint32_t  SCPFACCudaPacketResultsProcessing(Packet *p, MpmCtx *mpm_ctx,
                                           PatternMatcherQueue *pmq);
 void DetermineCudaStateTableSize(DetectEngineCtx *de_ctx);
 
 #endif /* __SC_CUDA_SUPPORT__ */
 
 
-#endif /* __UTIL_MPM_AC__H__ */
+#endif /* __UTIL_MPM_PFAC__H__ */

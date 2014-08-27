@@ -582,8 +582,10 @@ void MpmTableSetup(void) {
     MpmACBSRegister();
     MpmACGfbsRegister();
     MpmACTileRegister();
+    MpmPFACRegister();
 #ifdef __SC_CUDA_SUPPORT__
     MpmACCudaRegister();
+    MpmPFACCudaRegister();
 #endif /* __SC_CUDA_SUPPORT__ */
 }
 
