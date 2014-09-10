@@ -775,8 +775,8 @@ static inline void SCPFACCreateDeltaTable(MpmCtx *mpm_ctx)
                     SCPFACEnqueue(&q, temp_state);
                     ctx->state_table_u16[r_state][ascii_code] = temp_state;
                 } else {
-                    ctx->state_table_u16[r_state][ascii_code] =
-                        ctx->state_table_u16[ctx->failure_table[r_state]][ascii_code];
+                    /* ctx->state_table_u16[r_state][ascii_code] =
+                        ctx->state_table_u16[ctx->failure_table[r_state]][ascii_code]; */
                 }
             }
         }
@@ -818,8 +818,8 @@ static inline void SCPFACCreateDeltaTable(MpmCtx *mpm_ctx)
                     SCPFACEnqueue(&q, temp_state);
                     ctx->state_table_u32[r_state][ascii_code] = temp_state;
                 } else {
-                    ctx->state_table_u32[r_state][ascii_code] =
-                        ctx->state_table_u32[ctx->failure_table[r_state]][ascii_code];
+                   /* ctx->state_table_u32[r_state][ascii_code] =
+                        ctx->state_table_u32[ctx->failure_table[r_state]][ascii_code]; */
                 }
             }
         }
@@ -916,7 +916,7 @@ static inline void SCPFACPrepareStateTable(MpmCtx *mpm_ctx)
     /* create the goto table */
     SCPFACCreateGotoTable(mpm_ctx);
     /* create the failure table */
-    SCPFACCreateFailureTable(mpm_ctx);
+ /* SCPFACCreateFailureTable(mpm_ctx); */
     /* create the final state(delta) table */
     SCPFACCreateDeltaTable(mpm_ctx);
     /* club the output state presence with delta transition entries */
@@ -932,8 +932,8 @@ static inline void SCPFACPrepareStateTable(MpmCtx *mpm_ctx)
     /* we don't need these anymore */
     SCFree(ctx->goto_table);
     ctx->goto_table = NULL;
-    SCFree(ctx->failure_table);
-    ctx->failure_table = NULL;
+/*    SCFree(ctx->failure_table); 
+    ctx->failure_table = NULL; */
 
     return;
 }
@@ -1218,79 +1218,97 @@ uint32_t SCPFACSearch(MpmCtx *mpm_ctx, MpmThreadCtx *mpm_thread_ctx,
     if (ctx->state_count < 32767) {
         register SC_PFAC_STATE_TYPE_U16 state = 0;
         SC_PFAC_STATE_TYPE_U16 (*state_table_u16)[256] = ctx->state_table_u16;
+
         for (i = 0; i < buflen; i++) {
-            state = state_table_u16[state & 0x7FFF][u8_tolower(buf[i])];
-            if (state & 0x8000) {
-                uint32_t no_of_entries = ctx->output_table[state & 0x7FFF].no_of_entries;
-                uint32_t *pids = ctx->output_table[state & 0x7FFF].pids;
-                uint32_t k;
-                for (k = 0; k < no_of_entries; k++) {
-                    if (pids[k] & 0xFFFF0000) {
-                        if (SCMemcmp(pid_pat_list[pids[k] & 0x0000FFFF].cs,
-                                     buf + i - pid_pat_list[pids[k] & 0x0000FFFF].patlen + 1,
-                                     pid_pat_list[pids[k] & 0x0000FFFF].patlen) != 0) {
-                            /* inside loop */
-                            continue;
-                        }
-                        if (pmq->pattern_id_bitarray[(pids[k] & 0x0000FFFF) / 8] & (1 << ((pids[k] & 0x0000FFFF) % 8))) {
-                            ;
-                        } else {
-                            pmq->pattern_id_bitarray[(pids[k] & 0x0000FFFF) / 8] |= (1 << ((pids[k] & 0x0000FFFF) % 8));
-                            pmq->pattern_id_array[pmq->pattern_id_array_cnt++] = pids[k] & 0x0000FFFF;
-                        }
-                        matches++;
-                    } else {
-                        if (pmq->pattern_id_bitarray[pids[k] / 8] & (1 << (pids[k] % 8))) {
-                            ;
-                        } else {
-                            pmq->pattern_id_bitarray[pids[k] / 8] |= (1 << (pids[k] % 8));
-                            pmq->pattern_id_array[pmq->pattern_id_array_cnt++] = pids[k];
-                        }
-                        matches++;
-                    }
-                    //loop1:
-                    //;
+            int j;
+            for (j = i; j < buflen; j++) {
+                SC_PFAC_STATE_TYPE_U16 prev = state;
+                state = state_table_u16[state & 0x7FFF][u8_tolower(buf[j])];
+                
+                SCLogDebug("inspecting character: %x getting state: %d\n", (int) u8_tolower(buf[j]), (int) state);
+
+                if (state == 0) {
+                    break;
                 }
-            }
+
+                /* if-match */        
+                if (state & 0x8000) {
+                    SCLogDebug("FOUND MATCH\n");
+                    uint32_t no_of_entries = ctx->output_table[state & 0x7FFF].no_of_entries;
+                    uint32_t *pids = ctx->output_table[state & 0x7FFF].pids;
+                    uint32_t k;
+                    matches++;
+                    for (k = 0; k < no_of_entries; k++) {
+                        if (pids[k] & 0xFFFF0000) {
+                            if (SCMemcmp(pid_pat_list[pids[k] & 0x0000FFFF].cs,
+                                         buf + i - pid_pat_list[pids[k] & 0x0000FFFF].patlen + 1,
+                                         pid_pat_list[pids[k] & 0x0000FFFF].patlen) != 0) {
+                                /* inside loop */
+                                break;
+                            }
+                            if (pmq->pattern_id_bitarray[(pids[k] & 0x0000FFFF) / 8] & (1 << ((pids[k] & 0x0000FFFF) % 8))) {
+                                ;
+                            } else {
+                                pmq->pattern_id_bitarray[(pids[k] & 0x0000FFFF) / 8] |= (1 << ((pids[k] & 0x0000FFFF) % 8));
+                                pmq->pattern_id_array[pmq->pattern_id_array_cnt++] = pids[k] & 0x0000FFFF;
+                            }
+                            //matches++;
+                        } else {
+                            if (pmq->pattern_id_bitarray[pids[k] / 8] & (1 << (pids[k] % 8))) {
+                                ;
+                            } else {
+                                pmq->pattern_id_bitarray[pids[k] / 8] |= (1 << (pids[k] % 8));
+                                pmq->pattern_id_array[pmq->pattern_id_array_cnt++] = pids[k];
+                            }
+                            //matches++;
+                        }
+                        //loop1:
+                        //;
+                    }
+                } /* end if-match */
+            } /* for (j = i; j < buflen; j++) */
         } /* for (i = 0; i < buflen; i++) */
 
     } else {
         register SC_PFAC_STATE_TYPE_U32 state = 0;
         SC_PFAC_STATE_TYPE_U32 (*state_table_u32)[256] = ctx->state_table_u32;
         for (i = 0; i < buflen; i++) {
-            state = state_table_u32[state & 0x00FFFFFF][u8_tolower(buf[i])];
-            if (state & 0xFF000000) {
-                uint32_t no_of_entries = ctx->output_table[state & 0x00FFFFFF].no_of_entries;
-                uint32_t *pids = ctx->output_table[state & 0x00FFFFFF].pids;
-                uint32_t k;
-                for (k = 0; k < no_of_entries; k++) {
-                    if (pids[k] & 0xFFFF0000) {
-                        if (SCMemcmp(pid_pat_list[pids[k] & 0x0000FFFF].cs,
-                                     buf + i - pid_pat_list[pids[k] & 0x0000FFFF].patlen + 1,
-                                     pid_pat_list[pids[k] & 0x0000FFFF].patlen) != 0) {
-                            /* inside loop */
-                            continue;
-                        }
-                        if (pmq->pattern_id_bitarray[(pids[k] & 0x0000FFFF) / 8] & (1 << ((pids[k] & 0x0000FFFF) % 8))) {
-                            ;
+            int j = 0;
+            for (j = i; j < buflen; j++) {
+                state = state_table_u32[state & 0x00FFFFFF][u8_tolower(buf[i])];
+                if (state & 0xFF000000) {
+                    uint32_t no_of_entries = ctx->output_table[state & 0x00FFFFFF].no_of_entries;
+                    uint32_t *pids = ctx->output_table[state & 0x00FFFFFF].pids;
+                    uint32_t k;
+                    for (k = 0; k < no_of_entries; k++) {
+                        if (pids[k] & 0xFFFF0000) {
+                            if (SCMemcmp(pid_pat_list[pids[k] & 0x0000FFFF].cs,
+                                         buf + i - pid_pat_list[pids[k] & 0x0000FFFF].patlen + 1,
+                                         pid_pat_list[pids[k] & 0x0000FFFF].patlen) != 0) {
+                                /* inside loop */
+                                break;
+                            }
+                            if (pmq->pattern_id_bitarray[(pids[k] & 0x0000FFFF) / 8] & (1 << ((pids[k] & 0x0000FFFF) % 8))) {
+                                ;
+                            } else {
+                                pmq->pattern_id_bitarray[(pids[k] & 0x0000FFFF) / 8] |= (1 << ((pids[k] & 0x0000FFFF) % 8));
+                                pmq->pattern_id_array[pmq->pattern_id_array_cnt++] = pids[k] & 0x0000FFFF;
+                            }
+                            matches++;
                         } else {
-                            pmq->pattern_id_bitarray[(pids[k] & 0x0000FFFF) / 8] |= (1 << ((pids[k] & 0x0000FFFF) % 8));
-                            pmq->pattern_id_array[pmq->pattern_id_array_cnt++] = pids[k] & 0x0000FFFF;
+                            if (pmq->pattern_id_bitarray[pids[k] / 8] & (1 << (pids[k] % 8))) {
+                                ;
+                            } else {
+                                pmq->pattern_id_bitarray[pids[k] / 8] |= (1 << (pids[k] % 8));
+                                pmq->pattern_id_array[pmq->pattern_id_array_cnt++] = pids[k];
+                            }
+                            matches++;
                         }
-                        matches++;
-                    } else {
-                        if (pmq->pattern_id_bitarray[pids[k] / 8] & (1 << (pids[k] % 8))) {
-                            ;
-                        } else {
-                            pmq->pattern_id_bitarray[pids[k] / 8] |= (1 << (pids[k] % 8));
-                            pmq->pattern_id_array[pmq->pattern_id_array_cnt++] = pids[k];
-                        }
-                        matches++;
+                        //loop1:
+                        //;
                     }
-                    //loop1:
-                    //;
                 }
-            }
+            } /* end inner for */
         } /* for (i = 0; i < buflen; i++) */
     }
 
